@@ -1,4 +1,7 @@
 #include "RLEList.h"
+#include <stdlib.h>
+#include <string.h>
+
 
 struct RLEList_t{
     char letter;
@@ -6,37 +9,18 @@ struct RLEList_t{
     struct RLEList_t* next;
 };
 
-/**
-* findListIndex: Returns the list that contains character found at specified index in an RLE list
-* @param previousList - A list that is previous to the second parameter - list. 
-* @param list - The RLE list to retrieve the list from.
-* @param index - The index of the character to find the appropiate list.
-* @return
-* The list that contains the character with the specified index
-*/
-RLEList findListIndex(RLEList previousList, RLEList list, int index){
-    RLEList currentList = list;
-    int counter=0;
-    while ( index - counter + 1 > currentList -> consecutiveAppearancesNum ){
-        counter += currentList ->consecutiveAppearancesNum;
-        previousList = currentList;
-        currentList = currentList -> next;
-    }
-    return currentList;
-}
-
 
 /**
 * handleResult: assign result to the appropirate value according to the RLE list result status
 * @param result - Pointer to be used to store the result of the operation, if it is NULL, the result will not be saved.
 * @param status - Contains the status of result. if status is:
-* 	RLE_LIST_NULL_ARGUMENT result will be assigned to RLE_LIST_NULL_ARGUMENT.
-* 	RLE_LIST_INDEX_OUT_OF_BOUNDS result will be assigned to RLE_LIST_INDEX_OUT_OF_BOUNDS.
-* 	LIST_SUCCESS result will be assigned to LIST_SUCCESS.
-*   RLE_LIST_OUT_OF_MEMORY result will be assigned to RLE_LIST_OUT_OF_MEMORY.
-*   RLE_LIST_ERROR result will be assigned to RLE_LIST_ERROR.
+* 	RLE_LIST_NULL_ARGUMENT - result will be assigned to RLE_LIST_NULL_ARGUMENT.
+* 	RLE_LIST_INDEX_OUT_OF_BOUNDS - result will be assigned to RLE_LIST_INDEX_OUT_OF_BOUNDS.
+* 	LIST_SUCCESS - result will be assigned to LIST_SUCCESS.
+*   RLE_LIST_OUT_OF_MEMORY - result will be assigned to RLE_LIST_OUT_OF_MEMORY.
+*   RLE_LIST_ERROR - result will be assigned to RLE_LIST_ERROR.
 */
-void handleResult(RLEListResult* result , RLEListResult status){
+static void handleResult(RLEListResult* result , RLEListResult status){
 
     if(result == NULL){
         return;
@@ -69,15 +53,16 @@ RLEList RLEListCreate(){
     newList -> consecutiveAppearancesNum = 0;
     newList -> next = NULL;
     return newList;
+
 }
 
 void RLEListDestroy(RLEList list){
-        
-        while(list != NULL){
-            RLEList toRemove = list;
-            list = list -> next;
-            free(toRemove);
-        }
+
+    while(list != NULL){
+        RLEList toRemove = list;
+        list = list -> next;
+        free(toRemove);
+    }
 }
 
 RLEListResult RLEListAppend(RLEList list, char value){
@@ -86,39 +71,34 @@ RLEListResult RLEListAppend(RLEList list, char value){
         return RLE_LIST_NULL_ARGUMENT;
     }
     RLEList endOfList = list;
-    while(endOfList->next != NULL){
+    while( endOfList -> next != NULL){
         endOfList = endOfList -> next;
     }
-    //checks if the letter is similar to the current letter in the end of the list
-    if((endOfList -> letter)== value || (endOfList -> letter) == '\0' ){
-        (endOfList -> letter) = value;
-        (endOfList -> consecutiveAppearancesNum)++;
+    if( (endOfList ->letter) == value ){
+        (endOfList->consecutiveAppearancesNum)++;
         return RLE_LIST_SUCCESS;
     }
-    
-    //creates a new list for the new letter
+
     RLEList newList = RLEListCreate();
-    if(!newList){
+    if(newList == NULL){
         return RLE_LIST_OUT_OF_MEMORY;
     }
+    endOfList->next = newList;
     newList -> letter = value;
     newList -> consecutiveAppearancesNum = 1;
-    endOfList -> next = newList;
     return RLE_LIST_SUCCESS;
-
 
 }
 
 int RLEListSize(RLEList list){
-
-    if( list == NULL){
+    if(list == NULL){
         return -1;
     }
-    int listSize=0;
-    RLEList currentList = list;
-    while(currentList != NULL){
-        listSize += currentList -> consecutiveAppearancesNum;
-        currentList = currentList -> next;
+    int listSize = 0;
+    RLEList currentNode = list;
+    while (currentNode != NULL){
+        listSize += currentNode -> consecutiveAppearancesNum;
+        currentNode = currentNode -> next;
     }
     return listSize;
 
@@ -126,33 +106,52 @@ int RLEListSize(RLEList list){
 
 RLEListResult RLEListRemove(RLEList list, int index){
 
-    if (list == NULL){
+    if(list == NULL){
         return RLE_LIST_NULL_ARGUMENT;
     }
     int listSize = RLEListSize(list);
-    if(index < 0 || index >= listSize){
+    if( index < 0 || index >= listSize){
         return RLE_LIST_INDEX_OUT_OF_BOUNDS;
     }
-    RLEList previousList = list;
-    RLEList currentList = findListIndex(previousList,list,index);
-    //checks if the current list has 1 letter in a row only
-    //if so we will have to delete the list because we will stay with 0 letters after removal
-    //otherwise decreasing one from the current list
-    if(currentList -> consecutiveAppearancesNum == 1){
-        previousList->next = currentList-> next;
-        currentList->next = NULL;
-        RLEListDestroy(currentList);
+    RLEList previousIndexNode = list;
+    RLEList indexNode = list;
+    int counter =0;
+    while(index - counter >= indexNode -> consecutiveAppearancesNum){
+        counter += indexNode -> consecutiveAppearancesNum;
+        previousIndexNode = indexNode;
+        indexNode = indexNode -> next;
+    }
+    
+    if(indexNode->next == NULL && indexNode -> consecutiveAppearancesNum > 1){
+        (indexNode -> consecutiveAppearancesNum)--;
+    }
+    else if(indexNode->next == NULL && indexNode -> consecutiveAppearancesNum == 1){
+        previousIndexNode-> next = NULL;
+        free(indexNode);
     }
     else{
-        (currentList -> consecutiveAppearancesNum) --;
+        RLEList nextIndexNode = indexNode -> next;
+        if(indexNode->consecutiveAppearancesNum > 1){
+            (indexNode ->consecutiveAppearancesNum)--;
+        }
+        else{
+            if(previousIndexNode -> letter != nextIndexNode -> letter){
+                previousIndexNode-> next = nextIndexNode;
+                free(indexNode);
+            }
+            else{
+                previousIndexNode -> next = nextIndexNode -> next;
+                previousIndexNode -> consecutiveAppearancesNum += nextIndexNode -> consecutiveAppearancesNum;
+                free(indexNode);
+                free(nextIndexNode);
+            }
+        }
     }
     return RLE_LIST_SUCCESS;
 
 }
 
-
 char RLEListGet(RLEList list, int index, RLEListResult *result){
-
     if(list == NULL){
         handleResult(result,RLE_LIST_NULL_ARGUMENT);
         return 0;
@@ -163,59 +162,81 @@ char RLEListGet(RLEList list, int index, RLEListResult *result){
         return 0;
     }
 
-    RLEList listIndex = findListIndex(list,list,index);
+    RLEList indexNode = list;
+    int counter =0;
+    while(index - counter >= indexNode -> consecutiveAppearancesNum){
+        counter += indexNode -> consecutiveAppearancesNum;
+        indexNode = indexNode -> next;
+    }
     handleResult(result,RLE_LIST_SUCCESS);
-    return listIndex->letter;
-
+    return indexNode -> letter;
 
 }
 
 
 char* RLEListExportToString(RLEList list, RLEListResult* result){
-
+    
     if(list == NULL){
         handleResult(result,RLE_LIST_NULL_ARGUMENT);
         return NULL;
     }
     int listSize = RLEListSize(list);
-    //multiplying by 3 to assure Edge case - format of <letter><1><\n>
-    char* stringList = (char*)malloc(sizeof(*stringList)*(3*listSize+1)); 
-    if(stringList == NULL){
+    const int MAX_INT_LENGTH = 10;
+    //string is in the format <letter><num - which can take up to MAX_INT_LENGTH><\n>
+    char* initialListAsString = malloc(sizeof(*initialListAsString)*(2*listSize+MAX_INT_LENGTH*listSize+1));
+    if(initialListAsString == NULL){
         handleResult(result,RLE_LIST_OUT_OF_MEMORY);
+        return NULL;  
+    }
+    RLEList currentNode = list -> next;
+    int index = 0;
+    while(currentNode != NULL){
+        initialListAsString[index++] = currentNode -> letter;
+        char numAsString[MAX_INT_LENGTH + 1];
+        sprintf(numAsString, "%d", currentNode -> consecutiveAppearancesNum);
+        int numLength = strlen(numAsString);
+        strcpy(initialListAsString + index, numAsString);
+        index += numLength;
+        initialListAsString[index++] = '\n'; // MIGHT NEED TO INCLUDE IF, INCASE NOT NEEDED IN LAST LINE
+        currentNode = currentNode -> next;
+    }
+    initialListAsString[index] = '\0';
+    /*int stringLength = strlen(initialListAsString);
+    char* finalListAsString = realloc(initialListAsString,sizeof(*finalListAsString)*(stringLength+1));
+    if(finalListAsString == NULL){
+        if(result != NULL){
+            *result = RLE_LIST_OUT_OF_MEMORY;
+        }
         return NULL;
     }
-    RLEList currentList = list;
-    int index=0;
-    //assigning string to have the format of <letter><number of consecutive appearence><\n>
-    while(currentList!=NULL){
-
-        stringList[index++] = currentList -> letter;
-        stringList[index++] = currentList->consecutiveAppearancesNum;
-        //avoiding to put new line , if we are at the last list
-        if(currentList -> next != NULL){
-            stringList[index++] = '\n';
-        }
-        currentList = currentList -> next;
-
-    }
-    stringList[index]='\0';
+    initialListAsString = NULL; */
     handleResult(result,RLE_LIST_SUCCESS);
-    
-    return stringList;
+    return initialListAsString;
+
 }
+
 
 RLEListResult RLEListMap(RLEList list, MapFunction map_function){
 
     if(list == NULL || map_function == NULL){
         return RLE_LIST_NULL_ARGUMENT;
     }
-    RLEList currentList = list;
-    while(currentList != NULL){
-        currentList -> letter = map_function(currentList->letter);
-        currentList = currentList -> next;
+    RLEList previousNode = list;
+    RLEList currentNode = list -> next;
+    while (currentNode != NULL){
+        currentNode -> letter = map_function(currentNode->letter);
+        if(currentNode -> letter == previousNode -> letter){
+            previousNode ->consecutiveAppearancesNum += currentNode -> consecutiveAppearancesNum;
+            previousNode -> next = currentNode -> next;
+            RLEList toRemove = currentNode;
+            currentNode = currentNode -> next;
+            toRemove -> next = NULL;
+            RLEListDestroy(toRemove);
+        }
+        else{
+            previousNode = currentNode;
+            currentNode = currentNode -> next;
+        }
     }
     return RLE_LIST_SUCCESS;
 }
-
-
-
