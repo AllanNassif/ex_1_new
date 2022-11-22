@@ -1,25 +1,34 @@
-
-#include "AsciiArtTool.h"
-#include "RLEList.h"
+//
+// Created by Opal on 20/11/2022.
+//
 #include <string.h>
+#include <stdio.h>
+#include "AsciiArtTool.h"
 
-#define NUM_OF_ARGUMENTS 4
-#define FLAG 1
-#define SOURCE 2
+#define NUM_OF_FLAGS 2
+#define FLAGS 1
 #define TARGET 3
-
+#define SOURCE 2
+#define INVERTED_FLAG "-i"
+#define ENCODED_FLAG "-e"
+#define NUM_OF_ARGUMENTS 4
 
 /**
- * inputCheck: Checks if the input is valid.
+ * mapFunction: swaps only the characters : ' ','@'
  * 
- * @param argc - Integer that indicates how many arguments were entered on the command line.
- * @param argv - Array of pointers to arrays of character objects.
- * @return
- * false if the command entered in the command line is not proper.
- * true if the command entered in the command line is proper.
+ * @param character - character that will possibly be changed
  */
-static bool inputCheck(int argc, char** argv);
-
+static char mapFunction(char character){
+    if(character == ' '){
+        return '@';
+    }
+    else if(character == '@'){
+        return ' ';
+    }
+    else{
+        return character;
+    }
+}
 
 /**
  * closeTwoFiles: Close two opened files
@@ -27,93 +36,43 @@ static bool inputCheck(int argc, char** argv);
  * @param firstFile - file opened number one.
  * @param secondFile - file opened number two.
  */
-static void closeTwoFiles(FILE* firstFile , FILE* secondFile);
-
-/**
- * mapInvert: inverts every @ character into space character, as well as every space character into @ character.
- * The rest of the characters stay the same.
- * 
- * @param character The character wanted to be changed.
- * @return
- * If character is @ , space character will be returned.
- * If character is space , @ character will be returned.
- * Any other case , same character will be returned.
- */
-static char mapInvert(char character);
-
-int main(int argc, char** argv){
-
-    if(inputCheck(argc,argv) == false){
-        return 0;
-    }
-    
-    FILE* source = fopen(argv[SOURCE],"r");
-    if(!source){
-        return 0;
-    }
-    FILE* target = fopen(argv[TARGET],"w");
-    if(!target){
-        fclose(source);
-        return 0;
-    }
-    RLEList sourceList = asciiArtRead(source);
-    if(sourceList == NULL){
-        closeTwoFiles(source,target);
-        return 0;
-    }
-    
-    RLEListResult result = RLE_LIST_SUCCESS;
-    //Writes into target the picture in compressed method
-    if(!strcmp(argv[FLAG],"-e")){
-        result = asciiArtPrintEncoded(sourceList,target);
-        assert(result == RLE_LIST_SUCCESS);
-    }
-    //Writes into target the picture in inverted way
-    else{
-        MapFunction invert = mapInvert; 
-        result = RLEListMap(sourceList,invert);
-        assert(result == RLE_LIST_SUCCESS);
-        result = asciiArtPrint(sourceList,target);
-        assert(result == RLE_LIST_SUCCESS);
-
-    }
-    closeTwoFiles(source,target);
-    RLEListDestroy(sourceList);
-    return 0;
-
-}
-
-
 static void closeTwoFiles(FILE* firstFile , FILE* secondFile){
     assert(firstFile != NULL && secondFile != NULL);
     fclose(firstFile);
     fclose(secondFile);
 }
 
-static char mapInvert(char character){
-    if(character == '@'){
-        return ' ';
+int main(int argc, char** argv)
+{
+    if (argc != NUM_OF_ARGUMENTS){
+        return 0;
     }
-    if(character == ' '){
-        return '@';
+    FILE* inStream = fopen(argv[SOURCE],"r");
+    if(!inStream){
+        return 0;
     }
-    return character;
+    FILE* outStream = fopen(argv[TARGET],"w");
+    if(!outStream){
+        fclose(inStream);
+        return 0;
+    }
+
+    RLEList asciiArtList = asciiArtRead(inStream);
+    if(asciiArtList == NULL){
+        closeTwoFiles(inStream,outStream);
+        return 0;
+    }
+    //Writes into out stream the picture in compressed method(encoded)
+    if(strcmp(argv[FLAGS], ENCODED_FLAG) == 0){
+        asciiArtPrintEncoded(asciiArtList,outStream);
+    }
+    //Writes into out stream the picture in inverted way
+    else if (strcmp(argv[FLAGS], INVERTED_FLAG) == 0) {
+        RLEListMap(asciiArtList,mapFunction);
+        asciiArtPrint(asciiArtList,outStream);
+    }
+    
+    closeTwoFiles(inStream,outStream);
+    RLEListDestroy(asciiArtList);
+    return 0;
 }
-
-
-static bool inputCheck(int argc, char** argv){
-    if(argc != NUM_OF_ARGUMENTS){
-        return false;
-    }
-    if(strcmp(argv[FLAG],"-e") && strcmp(argv[FLAG],"-i") ){
-        return false;
-    }
-    if(argv[SOURCE]== NULL){
-        return false;
-    }
-    if(argv[TARGET] == NULL){
-        return false;
-    }
-    return true;
-}
-
